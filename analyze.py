@@ -180,14 +180,15 @@ def shell_scaling(h, z, m, a, rinf, f_ref=0.05, f_lo=0.005, f_hi=0.1):
     r = z["X"] * z["R"][j]; wP = z["wP"][j]; fac = z["fac"][j]
     thr = 0.5 * (m["org_ref"][0] + m["aq_ref"][0])
     aq = np.nonzero(wP < thr)[0]
-    if not len(aq):
-        return None
-    sh = slice(aq[-1] + 1, None)
-    dr = np.gradient(r)[sh]
-    har = dr.sum() / np.sum(dr / fac[sh])
-    geo = 10 ** np.mean(np.log10(fac[sh]))
-    L = (r[-1] - r[aq[-1]]) * a["R0_um"] * 1e-6
-    t_diff_h = L ** 2 / (a["D"] * har); t_diff_g = L ** 2 / (a["D"] * geo)
+    if len(aq):
+        sh = slice(aq[-1] + 1, None)
+        dr = np.gradient(r)[sh]
+        har = dr.sum() / np.sum(dr / fac[sh])
+        geo = 10 ** np.mean(np.log10(fac[sh]))
+        L = (r[-1] - r[aq[-1]]) * a["R0_um"] * 1e-6
+        t_diff_h = L ** 2 / (a["D"] * har); t_diff_g = L ** 2 / (a["D"] * geo)
+    else:       # no AS-rich phase (LLPS suppressed, e.g. small R0 at fixed physical kappa): no shell, particle time only
+        har = geo = L = t_diff_h = t_diff_g = np.nan
     # whole particle: R^2 / (pi^2 D_ref <factor>_harm over 0..R); unlike L, independent of kappa (interface width)
     drA = np.gradient(r); harA = drA.sum() / np.sum(drA / fac)
     t_part = (r[-1] * a["R0_um"] * 1e-6) ** 2 / (np.pi ** 2 * a["D"] * harA)

@@ -85,6 +85,13 @@ end 0.6-0.8 % above the constant-D radius, the ramp 0.2 % below; `t_mean_s` (mea
 - Interface-held water (f_w floor vs constant D): 0.6-0.7 % for all kappa except e0 kappa x2 (2 layers, 0.09 %); the
   floor is not simply proportional to the layer count.
 
+- Size dependence (`run_size.sh`, eta0 6e10). sph1d.py is nondimensional (time unit R0^2/D_ref, kappa in R0^2), so
+  changing only R0 rescales time exactly (R1_naive: t99 0.1159 s = 10 um x 0.01). With the physical interface width
+  fixed (kappa_nd = 2e-4 (10 um/R0)^2): 30 um has 16 layers, tau 57.0 s, tau/R0^2 +8 % vs 10 um (tau ~ R0^2.07, t99
+  119 s), c = tau/(R^2/pi^2 D_harm) 0.115. 1 and 3 um do NOT phase-separate (the artificial interface, ~0.1-0.5 um, does
+  not fit), D_harm is 6-9x larger and t99 7-9x shorter than R^2 scaling; c 0.088 / 0.100. Sub-10 um results need a
+  thinner (physical) interface and a finer mesh; LLPS suppression itself is a sub-micron effect (follow-up #2).
+
 ## Next steps (open)
 - [x] kappa_P x0.5, x2 sensitivity of L and t99 (interface width) — session 2
 - [x] eta_ref convention: D*eta fixed (eta_ref 0.0086 Pa s) adopted 2026-10-20. Use `--eta_ref 0.008603994797084933`
@@ -94,7 +101,7 @@ end 0.6-0.8 % above the constant-D radius, the ramp 0.2 % below; `t_mean_s` (mea
 - [ ] layer count: needs a physical interface width (kappa from sigma ~ mN/m) or report only the coarse structure
 - [ ] three-mobility (Maxwell-Stefan-like) model with a separate water mobility (largest uncertainty: xi)
 - [ ] DTAA, terpenylic acid proxies (O:C dependence)
-- [ ] size dependence R0 = 1, 3, 30 um
+- [x] size dependence R0 = 1, 3, 30 um — session 2 (tau ~ R^2 for 10-30 um; 1-3 um need a thinner interface)
 - [ ] ramp time scan 6, 20, 60, 200 s (layer-count transition; input for follow-up #4)
 - [ ] multicomponent alpha-pinene SOA via the NN surrogate (Yoo 2026b)
 - [ ] 3D axisymmetric with flow (follow-up #3) to test whether the 7 layers survive capillary flow
