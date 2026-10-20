@@ -40,7 +40,9 @@ Typical SOA run: `python3 sph1d.py --system results/MBTCA --rh_ref 0.75 --rh0 0.
 6. Viscosity: AIOMFAC-VISC, x_org-weighted aquorg/aquelec (as paper6). The organic phase holds AS (w 0.22-0.29), so
    it is only 10^3.5-10^5.6 Pa s at RH 0.2: semi-solid skin, not glass. Dry eta0 = 6e10 (D2018 Tg 286 K), 1e12,
    1e14, 1e16 as an oligomer sensitivity. Mobility L_i ~ D_ref (eta_ref/eta)^xi, eta_ref 0.0086 Pa s, D_ref 1e-10.
-7. Metric: remaining evaporable water f_w = (R^3 - Rinf^3)/(1 - Rinf^3), Rinf = each run's own final radius.
+7. Mobility normalisation (session 2): D = D_ref at eta_ref = 0.0086 Pa s for every eta0 (D*eta fixed, Stokes-Einstein);
+   the first eta0 runs normalised at each run's own initial viscosity (up to 1.9x larger D).
+8. Metric: remaining evaporable water f_w = (R^3 - Rinf^3)/(1 - Rinf^3), Rinf = each run's own final radius.
    Layered xi = 1 runs hold ~0.7 % more water than the constant-D run in their diffuse interfaces (artefact).
 
 ## Results
@@ -48,14 +50,14 @@ Typical SOA run: `python3 sph1d.py --system results/MBTCA --rh_ref 0.75 --rh0 0.
 | --- | --- | --- | --- |
 | 0.30 constant D | 0.14 | 0.26 | 2 |
 | 0.30 xi 0.5 | 0.16 | 0.60 | 2 |
-| 0.30 xi 1, eta0 6e10 / 1e12 / 1e14 / 1e16 | 0.68 / 0.97 / 1.8 / 3.6 | 11.6 / 21.1 / 57.5 / 168 | 7 |
+| 0.30 xi 1, eta0 6e10 / 1e12 / 1e14 / 1e16 (D*eta fixed, `*_er`) | 0.68 / 1.1 / 2.6 / 6.6 | 11.6 / 24.1 / 82.6 / 315 | 7 |
 | 0.30 xi 1, H = 0 | 0.71 | 12.4 | 6 |
 | 0.30 xi 1, 60 s ramp | 43 | 69 | 2 |
 | 0.50 / 0.80, xi 1 | 0.28 / 0.77 | 1.2 / 3.0 | 3 / 2 |
-(t90/t99 log-interpolated between snapshots; the first draft of the doc used the first snapshot past the level,
-`*_snap_s` in summary.csv: 12.4 / 24.5 / 61.5 / 175, H = 0 14.5. The 1 % level is close to the model floor: xi = 1 runs
-end 0.6-0.8 % above the constant-D radius, the ramp 0.2 % below; `t_mean_s` (mean a_w within 0.01 of RH: 31 / 51 / 154 /
-445 s) gives the same eta0 ratio.)
+(t90/t99 log-interpolated between snapshots; the first draft of the doc used the first snapshot past the level and the
+own-eta_ref eta0 runs: 12.4 / 24.5 / 61.5 / 175, H = 0 14.5. The 1 % level is close to the model floor: xi = 1 runs
+end 0.6-0.8 % above the constant-D radius, the ramp 0.2 % below; `t_mean_s` (mean a_w within 0.01 of RH: 31 / 62 / 222 /
+944 s) gives the same eta0 ratio.)
 - Late decay time tau = 0.36-0.42 L^2/D_shell with D_shell from the harmonic (series) mean of the mobility factor over the
   outer MBTCA-rich shell (L 0.55-0.7 um; fine mesh 0.48); the doc's 0.8-1.1 came from a geometric mean. `figures/scaling.csv`.
 - Surface a_w within 0.02 of RH by 0.36 s in all step runs (within 0.01 only by 0.62 s); surface w_MBTCA reaches 0.71 at
@@ -85,8 +87,10 @@ end 0.6-0.8 % above the constant-D radius, the ramp 0.2 % below; `t_mean_s` (mea
 
 ## Next steps (open)
 - [x] kappa_P x0.5, x2 sensitivity of L and t99 (interface width) — session 2
-- [ ] adopt fixed D*eta (eta_ref 0.0086) for the paper: only the eta0 runs e1-e3 change (`*_er`); all eta_idx 0 runs
-  (wet0, ramp, RH 0.5/0.8, xi 0.5, fine) already have eta_ref 0.0086
+- [x] eta_ref convention: D*eta fixed (eta_ref 0.0086 Pa s) adopted 2026-10-20. Use `--eta_ref 0.008603994797084933`
+  for any new run with eta_idx > 0. Only the eta0 runs change (`*_er`); all eta_idx 0 runs already have it.
+  The own-eta_ref runs (soa_rh0.30_xi1_e1..3, and the kappa runs e3_fine*) are kept for comparison (fig6); kappa
+  comparisons at eta0 1e16 are relative, so they stand.
 - [ ] layer count: needs a physical interface width (kappa from sigma ~ mN/m) or report only the coarse structure
 - [ ] three-mobility (Maxwell-Stefan-like) model with a separate water mobility (largest uncertainty: xi)
 - [ ] DTAA, terpenylic acid proxies (O:C dependence)

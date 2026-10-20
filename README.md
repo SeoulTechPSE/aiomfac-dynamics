@@ -18,7 +18,7 @@ Results are summarised in the doc "후속 연구 1 예비 결과". This folder h
 - Run lists (each skips runs whose `_meta.json` exists): `run_soa.sh` all MBTCA runs (`q1.sh` + `q2.sh` split them over
   two cores), `run_peg3d.sh` PEG 3D/2D and H = 0 runs, `run_validation.sh` planar sigma_num and 2D disc checks against
   dolfinx (these use `--implicit 0`, the explicit Rdot of m3g, as when they were run), `run_kappa.sh` interface-width
-  sensitivity (kappa x0.5, x2, seed 2; fine mesh), `run_etaref.sh` eta0 runs with D*eta fixed (`--eta_ref`).
+  sensitivity (kappa x0.5, x2, seed 2; fine mesh), `run_etaref.sh` eta0 runs with D*eta fixed (`--eta_ref`): the adopted convention, used in fig2/4/5.
 - `analyze.py` — figures, `figures/summary.csv` (+ `summary.txt`) and `figures/scaling.csv`.
   t90/t99 are log-interpolated between snapshots (`*_snap_s`: first snapshot at or below the level, as in the first
   draft, up to ~17 % high). PEG rows: onset time, previous snapshot time (= resolution), mean a_w and X at onset,

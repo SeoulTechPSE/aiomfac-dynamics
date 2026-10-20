@@ -245,8 +245,9 @@ def panel_aw(ax, tags, labels, title):
 fig, ax = plt.subplots(1, 3, figsize=(10.5, 3.1))
 panel_aw(ax[0], ["soa_rh0.30_xi0", "soa_rh0.30_xi0.5_e0", "soa_rh0.30_xi1_e0"],
          ["constant D", "ξ = 0.5", "ξ = 1 (Stokes–Einstein)"], "Mobility law (RH 0.85 → 0.30)")
-panel_aw(ax[1], ["soa_rh0.30_xi1_e0", "soa_rh0.30_xi1_e1", "soa_rh0.30_xi1_e2", "soa_rh0.30_xi1_e3"],
-         [f"η$_0$ = {e:.0e} Pa s" for e in ETA0], "Dry viscosity η$_0$ (ξ = 1)")
+# eta0 runs: D*eta fixed (eta_ref 0.0086 Pa s, the *_er runs) is the convention; the own-eta_ref runs are in fig6
+panel_aw(ax[1], ["soa_rh0.30_xi1_e0", "soa_rh0.30_xi1_e1_er", "soa_rh0.30_xi1_e2_er", "soa_rh0.30_xi1_e3_er"],
+         [f"η$_0$ = {e:.0e} Pa s" for e in ETA0], "Dry viscosity η$_0$ (ξ = 1, D·η fixed)")
 panel_aw(ax[2], ["soa_rh0.80_xi1_e0", "soa_rh0.50_xi1_e0", "soa_rh0.30_xi1_e0", "soa_rh0.30_xi1_e0_ramp60"],
          ["RH 0.80", "RH 0.50", "RH 0.30", "RH 0.30, 60 s ramp"], "Final RH (ξ = 1)")
 for a_ in ax:
@@ -293,7 +294,7 @@ def profiles(tag, fname, times=(0.05, 0.2, 1, 5, 20, None)):
 
 
 profiles("soa_rh0.30_xi1_e0", "fig3_profiles_rh030_xi1_e0.png")
-profiles("soa_rh0.30_xi1_e3", "fig4_profiles_rh030_xi1_e3.png", times=(0.05, 0.3, 3, 30, 300, None))
+profiles("soa_rh0.30_xi1_e3_er", "fig4_profiles_rh030_xi1_e3.png", times=(0.05, 0.3, 3, 30, 300, None))
 profiles("soa_rh0.30_xi0", "figS_profiles_rh030_xi0.png")
 profiles("soa_rh0.30_xi1_e0_wet0", "figS_profiles_rh030_wet0.png")
 profiles("soa_rh0.30_xi1_e0_ramp60", "figS_profiles_rh030_ramp60.png", times=(1, 10, 30, 60, 100, None))
@@ -302,7 +303,7 @@ profiles("soa_rh0.80_xi1_e0", "figS_profiles_rh080.png", times=(0.05, 0.2, 0.5, 
 # space-time map of w_MBTCA for the baseline and the high-eta0 case
 fig, ax = plt.subplots(1, 2, figsize=(9, 3.2), sharey=True)
 pc = None
-for a_, tag in zip(ax, ["soa_rh0.30_xi1_e0", "soa_rh0.30_xi1_e3"]):
+for a_, tag in zip(ax, ["soa_rh0.30_xi1_e0", "soa_rh0.30_xi1_e3_er"]):
     if tag not in soa:
         continue
     h, z, m, a = soa[tag]
