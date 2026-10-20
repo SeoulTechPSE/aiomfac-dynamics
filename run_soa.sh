@@ -1,6 +1,8 @@
 cd "$(dirname "$0")"
+# All MBTCA + AS runs (same list as q1.sh + q2.sh, which split it over two cores).
+# --wmin 1e-6 --lfloor 1e-7 are required: with the paper6 values (1e-3/1e-4) w_P goes negative and the runs collapse late.
 S=results/MBTCA
-B="--system $S --rh_ref 0.75 --rh0 0.85 --n 600 --grade 10 --dtmax 2 --nsnap 50"
+B="--system $S --rh_ref 0.75 --rh0 0.85 --n 600 --grade 10 --dtmax 2 --nsnap 50 --wmin 1e-6 --lfloor 1e-7"
 # A: final RH (Stokes-Einstein, D2018 eta0)
 [ -f runs/soa_rh0.80_xi1_e0_meta.json ] || python3 sph1d.py $B --rh 0.80 --visc 1 --tend_s 20  --tag soa_rh0.80_xi1_e0 > runs/soa_rh0.80_xi1_e0.log 2>&1
 [ -f runs/soa_rh0.50_xi1_e0_meta.json ] || python3 sph1d.py $B --rh 0.50 --visc 1 --tend_s 100 --tag soa_rh0.50_xi1_e0 > runs/soa_rh0.50_xi1_e0.log 2>&1
@@ -17,4 +19,4 @@ B="--system $S --rh_ref 0.75 --rh0 0.85 --n 600 --grade 10 --dtmax 2 --nsnap 50"
 # E: slow ramp (60 s) vs step
 [ -f runs/soa_rh0.30_xi1_e0_ramp60_meta.json ] || python3 sph1d.py $B --rh 0.30 --visc 1 --ramp_s 60 --tend_s 260 --tag soa_rh0.30_xi1_e0_ramp60 > runs/soa_rh0.30_xi1_e0_ramp60.log 2>&1
 # F: mesh convergence
-[ -f runs/soa_rh0.30_xi1_e0_fine_meta.json ] || python3 sph1d.py --system $S --rh_ref 0.75 --rh0 0.85 --n 1200 --grade 20 --dtmax 2 --nsnap 50 --rh 0.30 --visc 1 --tend_s 200 --tag soa_rh0.30_xi1_e0_fine > runs/soa_rh0.30_xi1_e0_fine.log 2>&1
+[ -f runs/soa_rh0.30_xi1_e0_fine_meta.json ] || python3 sph1d.py --system $S --rh_ref 0.75 --rh0 0.85 --n 1200 --grade 20 --dtmax 2 --nsnap 50 --wmin 1e-6 --lfloor 1e-7 --rh 0.30 --visc 1 --tend_s 200 --tag soa_rh0.30_xi1_e0_fine > runs/soa_rh0.30_xi1_e0_fine.log 2>&1

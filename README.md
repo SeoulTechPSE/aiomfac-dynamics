@@ -14,9 +14,16 @@ Results are summarised in the doc "후속 연구 1 예비 결과". This folder h
   (`tables_290K.npz`, eta0 = 6e10, 1e12, 1e14, 1e16 Pa s), G_ex fit (`gex_fit_290K.npz`, degree 12).
   `SOA=DTAA` or `SOA=terpenylic` switches the proxy.
 - `srh.py` — exact separation RH (binodal a_w) of the 1:1 particles: PEG-400 0.9016, MBTCA 0.8169.
-- `q1.sh`, `q2.sh`, `run_*.sh` — the run lists. `analyze.py` — figures and `figures/summary.csv`.
+- Run lists (each skips runs whose `_meta.json` exists): `run_soa.sh` all MBTCA runs (`q1.sh` + `q2.sh` split them over
+  two cores), `run_peg3d.sh` PEG 3D/2D and H = 0 runs, `run_validation.sh` planar sigma_num and 2D disc checks against
+  dolfinx (these use `--implicit 0`, the explicit Rdot of m3g, as when they were run).
+- `analyze.py` — figures, `figures/summary.csv` (+ `summary.txt`) and `figures/scaling.csv`.
+  t90/t99 are log-interpolated between snapshots (`*_snap_s`: first snapshot at or below the level, as in the first
+  draft, up to ~17 % high). PEG rows: onset time, previous snapshot time (= resolution), mean a_w and X at onset,
+  final surface w_PEG. `scaling.csv`: tau (e-folding of f_w over 0.1-0.005) vs L^2/D_shell with D_shell from the
+  harmonic (series, physical) and geometric means of the mobility factor over the outer organic-rich shell.
 - `results/MBTCA/` — tables, fit, sigma_num. `runs/` — every run: `<tag>_hist.csv` (time series),
-  `<tag>.npz` (profiles), `<tag>_meta.json`, `<tag>.log`. `runs/old/` = first SOA runs before the positivity fix.
+  `<tag>.npz` (profiles), `<tag>_meta.json`, `<tag>.log`. (The first SOA runs before the positivity fix are not kept.)
 
 ## Environment
 Python 3.13, jax 0.x (CPU, float64), numpy, scipy, pandas, matplotlib; aiomfac_py (SeoulTechPSE/aiomfac-python,

@@ -36,10 +36,20 @@ print(f"PEG equilibrium mass ratio RH 0.80/0.92 = {m_ratio:.4f}: R_f 2D (sqrt) {
 
 
 def onset(h, meta, w0):
-    """first recorded time at which an aqueous (PEG-depleted) region appears: w_P,min < (w0 + w_aq,ref)/2"""
+    """first recorded time at which an aqueous (PEG-depleted) region appears: w_P,min < (w0 + w_aq,ref)/2.
+    Returns (row index, time, previous snapshot time); the snapshot spacing (~12 %) is the resolution of the onset time."""
     thr = 0.5 * (w0 + meta["aq_ref"][0])
     k = np.nonzero(h.wP_min.values < thr)[0]
-    return h.t_s.values[k[0]] if len(k) else np.nan
+    if not len(k):
+        return None, np.nan, np.nan
+    k = k[0]
+    return k, h.t_s.values[k], h.t_s.values[k - 1] if k > 0 else np.nan
+
+
+def onset_X(z, meta, t):
+    """X = r/R of the w_P minimum in the snapshot closest to t (where the aqueous phase first appears)"""
+    j = np.argmin(abs(z["t"] * meta["t0_s"] - t))
+    return float(z["X"][np.argmin(z["wP"][j])])
 
 
 def t_dry(h, frac=0.95):
@@ -51,7 +61,11 @@ def t_dry(h, frac=0.95):
 for tag in sorted(glob.glob(f"{RUN}/peg_*_hist.csv")):
     tag = os.path.basename(tag)[:-9]
     h, z, m = load(tag)
-    rows.append({"case": tag, "R_final": h.R.iloc[-1], "onset_s": onset(h, m, m["w0"][0]), "t95_s": t_dry(h),
+    k, t_on, t_on_prev = onset(h, m, m["w0"][0])
+    rows.append({"case": tag, "R_final": h.R.iloc[-1], "onset_s": t_on, "onset_prev_snap_s": t_on_prev,
+                 "onset_aw_mean": h.aw_mean.values[k] if k is not None else np.nan,
+                 "onset_X": onset_X(z, m, t_on) if k is not None else np.nan,
+                 "Pe_evap0": h.Pe_evap.iloc[0], "surf_wP_end": h.wP_edge.iloc[-1], "t95_s": t_dry(h),
                  "layers_final": int(h.peg_layers.iloc[-1]), "mass_err": max(abs(h.PEG_rel - 1).max(), abs(h.AS_rel - 1).max()),
                  "steps": m["steps"], "status": m.get("status", "")})
 
@@ -127,9 +141,56 @@ def fw(h, rinf):
     return (h.R.values ** 3 - rinf ** 3) / (1 - rinf ** 3)
 
 
-def t_frac(h, rinf, f):
-    v = fw(h, rinf); k = np.nonzero(v <= f)[0]
-    return h.t_s.values[k[0]] if len(k) else np.inf
+def t_frac(h, rinf, f, snap=False):
+    """time at which f_w first reaches f, log-log interpolated between the bracketing snapshots
+    (snap=True: the first snapshot at or below f, as in the first version; biased high by up to one snapshot interval)"""
+    t = h.t_s.values; v = fw(h, rinf); k = np.nonzero(v <= f)[0]
+    if not len(k):
+        return np.inf
+    k = k[0]
+    if snap or k == 0:
+        return t[k]
+    if v[k] > 0 and t[k - 1] > 0:
+        return float(np.exp(np.interp(np.log(f), [np.log(v[k]), np.log(v[k - 1])], [np.log(t[k]), np.log(t[k - 1])])))
+    return float(t[k - 1] + (t[k] - t[k - 1]) * (v[k - 1] - f) / (v[k - 1] - v[k]))
+
+
+def t_cross(t, y, level):
+    """first time y rises to level, linearly interpolated (NaN if never)"""
+    k = np.nonzero(y >= level)[0]
+    if not len(k):
+        return np.nan
+    k = k[0]
+    return t[k] if k == 0 else float(np.interp(level, [y[k - 1], y[k]], [t[k - 1], t[k]]))
+
+
+def shell_scaling(h, z, m, a, rinf, f_ref=0.05, f_lo=0.005, f_hi=0.1):
+    """late decay time tau vs diffusion time of the outer organic-rich shell.
+    tau: e-folding of f_w fitted on f_lo <= f_w <= f_hi.  L: surface to the first AS-rich node (w_P below the
+    midpoint of the organic/aqueous reference compositions) in the snapshot closest to f_w = f_ref.
+    D_shell = D_ref * <factor>; layers are in series, so the length-weighted harmonic mean is the physical average
+    (the geometric mean is given for comparison with the first draft of the doc)."""
+    t = h.t_s.values; v = fw(h, rinf)
+    k = (v >= f_lo) & (v <= f_hi)
+    if k.sum() < 3:
+        return None
+    tau = -1.0 / np.polyfit(t[k], np.log(v[k]), 1)[0]
+    vz = (z["R"] ** 3 - rinf ** 3) / (1 - rinf ** 3)
+    j = int(np.argmin(abs(np.log(np.maximum(vz, 1e-12)) - np.log(f_ref))))
+    r = z["X"] * z["R"][j]; wP = z["wP"][j]; fac = z["fac"][j]
+    thr = 0.5 * (m["org_ref"][0] + m["aq_ref"][0])
+    aq = np.nonzero(wP < thr)[0]
+    if not len(aq):
+        return None
+    sh = slice(aq[-1] + 1, None)
+    dr = np.gradient(r)[sh]
+    har = dr.sum() / np.sum(dr / fac[sh])
+    geo = 10 ** np.mean(np.log10(fac[sh]))
+    L = (r[-1] - r[aq[-1]]) * a["R0_um"] * 1e-6
+    t_diff_h = L ** 2 / (a["D"] * har); t_diff_g = L ** 2 / (a["D"] * geo)
+    return {"t_snap_s": z["t"][j] * m["t0_s"], "fw_snap": vz[j], "L_um": L * 1e6, "fac_harm": har, "fac_geo": geo,
+            "L2_D_harm_s": t_diff_h, "L2_D_geo_s": t_diff_g, "tau_s": tau,
+            "tau_over_L2D_harm": tau / t_diff_h, "tau_over_L2D_geo": tau / t_diff_g}
 
 
 for tag, (h, z, m, a) in soa.items():
@@ -140,14 +201,29 @@ for tag, (h, z, m, a) in soa.items():
                  "R_final": h.R.iloc[-1], "R_eq_AIOMFAC": mr ** (1 / 3), "R_inf_model": rinf,
                  "fw_floor_vs_constD": ((h.R.iloc[-1] ** 3 - RCONST[rh] ** 3) / (1 - RCONST[rh] ** 3)) if rh in RCONST else np.nan,
                  "t90_s": t_frac(h, rinf, 0.10), "t99_s": t_frac(h, rinf, 0.01),
+                 "t90_snap_s": t_frac(h, rinf, 0.10, snap=True), "t99_snap_s": t_frac(h, rinf, 0.01, snap=True),
                  "fw_1s": float(np.interp(1.0, h.t_s, fw(h, rinf))), "fw_10s": float(np.interp(10.0, h.t_s, fw(h, rinf))), "t_surf_s": t_equil(h.assign(aw_mean=h.aw_surf), rh),
+                 "t_surf_002_s": t_equil(h.assign(aw_mean=h.aw_surf), rh, tol=0.02),
+                 "aw_mean_2s": float(np.interp(2.0, h.t_s, h.aw_mean)), "aw_mean_10s": float(np.interp(10.0, h.t_s, h.aw_mean)),
+                 "t_first_snap_s": h.t_s.values[1], "t_surf_wP071_s": t_cross(h.t_s.values, h.wP_edge.values, 0.71),
+                 "surf_wP_max": h.wP_edge.max(), "surf_wP_20s": float(np.interp(20.0, h.t_s, h.wP_edge)),
                  "t_mean_s": t_equil(h, rh), "excess_water_1s": h.wW_mean.iloc[t1] - ww_eq,
                  "excess_water_10s": h.wW_mean.iloc[t10] - ww_eq, "excess_water_end": h.wW_mean.iloc[-1] - ww_eq,
                  "logfac_min": h.logfac_min.min(), "skin_R0_end": skin(z, -1), "layers_final": int(h.peg_layers.iloc[-1]),
                  "mass_err": max(abs(h.PEG_rel - 1).max(), abs(h.AS_rel - 1).max()), "steps": m["steps"],
                  "status": m.get("status", "")})
 
-ETA0 = np.load(os.path.join(HERE, "results/MBTCA/tables_290K.npz"))["eta0"]
+# late-time scaling tau vs L^2/D_shell (step runs with viscosity-dependent mobility)
+scal = []
+for tag, (h, z, m, a) in soa.items():
+    if a["visc"] > 0 and a["ramp_s"] == 0:
+        s = shell_scaling(h, z, m, a, h.R.iloc[-1])
+        if s:
+            scal.append({"case": tag, "RH": a["rh"], "xi": a["visc"], "eta_idx": a["eta_idx"], "wet": a["wet"], **s})
+scal = pd.DataFrame(scal)
+scal.to_csv(f"{FIG}/scaling.csv", index=False)
+
+ETA0 =np.load(os.path.join(HERE, "results/MBTCA/tables_290K.npz"))["eta0"]
 
 
 def panel_aw(ax, tags, labels, title):
@@ -224,5 +300,7 @@ plt.savefig(f"{FIG}/fig5_spacetime.png", bbox_inches="tight"); plt.close()
 
 df = pd.DataFrame(rows)
 df.to_csv(f"{FIG}/summary.csv", index=False)
-pd.set_option("display.width", 250); pd.set_option("display.max_columns", 30)
+pd.set_option("display.width", 250); pd.set_option("display.max_columns", None)
 print(df.to_string(float_format=lambda v: f"{v:.4g}"))
+print("\nLate-time scaling (figures/scaling.csv): tau vs L^2/D_shell, D_shell from the harmonic (series) and geometric mean")
+print(scal.to_string(float_format=lambda v: f"{v:.3g}"))

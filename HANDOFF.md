@@ -9,7 +9,7 @@ Pe_evap >= 30 regime, skin formation, water trapping, layers. It also answered p
 A-2 (H = 0 control, exact binodal a_w).
 
 ## State (2026-10-20)
-- Done: solver port + validation, MBTCA + AS tables, 14 SOA runs, 8 PEG runs, figures, write-up doc
+- Done: solver port + validation, MBTCA + AS tables, 11 SOA runs, 7 PEG runs (+4 validation runs), figures, write-up doc
   ("후속 연구 1 예비 결과", claude.ai artifact on the old account; export it to Markdown/Word and attach).
 - All numbers below are in `figures/summary.csv` and `runs/<tag>_hist.csv`.
 
@@ -46,17 +46,24 @@ Typical SOA run: `python3 sph1d.py --system results/MBTCA --rh_ref 0.75 --rh0 0.
 ## Results
 | case (RH 0.85 -> ) | t90 (s) | t99 (s) | layers |
 | --- | --- | --- | --- |
-| 0.30 constant D | 0.16 | 0.28 | 2 |
-| 0.30 xi 0.5 | 0.19 | 0.72 | 2 |
-| 0.30 xi 1, eta0 6e10 / 1e12 / 1e14 / 1e16 | 0.72 / 1.0 / 2.1 / 4.1 | 12.4 / 24.5 / 61.5 / 175 | 7 |
-| 0.30 xi 1, H = 0 | 0.74 | 14.5 | 6 |
-| 0.30 xi 1, 60 s ramp | 48 | 70 | 2 |
-| 0.50 / 0.80, xi 1 | 0.30 / 0.88 | 1.3 / 3.1 | 3 / 2 |
-- Late decay time tau = L^2/D_shell within 0.8-1.1 (L = outer MBTCA-rich shell, 0.55-0.7 um).
-- Surface a_w within 0.01 of RH by 0.5 s in all step runs; skin w_MBTCA 0.71-0.74 within 0.1 s for H = 2 and H = 0.
+| 0.30 constant D | 0.14 | 0.26 | 2 |
+| 0.30 xi 0.5 | 0.16 | 0.60 | 2 |
+| 0.30 xi 1, eta0 6e10 / 1e12 / 1e14 / 1e16 | 0.68 / 0.97 / 1.8 / 3.6 | 11.6 / 21.1 / 57.5 / 168 | 7 |
+| 0.30 xi 1, H = 0 | 0.71 | 12.4 | 6 |
+| 0.30 xi 1, 60 s ramp | 43 | 69 | 2 |
+| 0.50 / 0.80, xi 1 | 0.28 / 0.77 | 1.2 / 3.0 | 3 / 2 |
+(t90/t99 log-interpolated between snapshots; the first draft of the doc used the first snapshot past the level,
+`*_snap_s` in summary.csv: 12.4 / 24.5 / 61.5 / 175, H = 0 14.5. The 1 % level is close to the model floor: xi = 1 runs
+end 0.6-0.8 % above the constant-D radius, the ramp 0.2 % below; `t_mean_s` (mean a_w within 0.01 of RH: 31 / 51 / 154 /
+445 s) gives the same eta0 ratio.)
+- Late decay time tau = 0.36-0.42 L^2/D_shell with D_shell from the harmonic (series) mean of the mobility factor over the
+  outer MBTCA-rich shell (L 0.55-0.7 um; fine mesh 0.48); the doc's 0.8-1.1 came from a geometric mean. `figures/scaling.csv`.
+- Surface a_w within 0.02 of RH by 0.36 s in all step runs (within 0.01 only by 0.62 s); surface w_MBTCA reaches 0.71 at
+  0.10-0.11 s (eta0 1e16: first snapshot 0.2 s), peak 0.74, for H = 2 and H = 0.
 - Mesh check (n 1200, grade 20): R within 5e-4, mean a_w within 1e-3. Mass error < 1.4e-6 everywhere.
 - PEG A-1: 3D final R 0.824 (AIOMFAC 0.820) vs 2D 0.749 (0.743); aqueous onset 0.17 s (3D) vs 0.22 s (2D);
-  95 % radius change 0.85 vs 1.13 s; onset mean a_w 0.893-0.901 vs binodal 0.9016.
+  95 % radius change 0.85 vs 1.13 s; onset mean a_w 0.893-0.903 vs binodal 0.9016
+  (onset times resolved to one snapshot, ~12 %).
 - PEG A-2 (H = 2 / H = 0): onset time 0.155/0.155, 0.173/0.173, 0.138/0.123 s at Pe 0.038/0.38/3.8; with H = 0 the
   AS-rich phase forms at the surface (X = 1) and covers it (final surface w_PEG 0.002). Location/time of onset =
   evaporative enrichment; PEG-rich shell = wetting.
