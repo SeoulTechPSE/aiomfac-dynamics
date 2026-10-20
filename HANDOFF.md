@@ -68,8 +68,25 @@ end 0.6-0.8 % above the constant-D radius, the ramp 0.2 % below; `t_mean_s` (mea
   AS-rich phase forms at the surface (X = 1) and covers it (final surface w_PEG 0.002). Location/time of onset =
   evaporative enrichment; PEG-rich shell = wetting.
 
+## Session 2 (2026-10-20): review fixes and sensitivity (branch review-fixes)
+- Mobility normalisation: D_ref = 1e-10 was set at each run's own initial viscosity, which grows with eta0 (0.0086,
+  0.0100, 0.0128, 0.0163 Pa s), so the high-eta0 runs had D*eta up to 1.9x too large for Stokes-Einstein. With
+  `--eta_ref 0.0086` (runs `*_er`): t99 11.6 / 24.1 / 82.6 / 315 s (was 11.6 / 21.1 / 57.5 / 168). The eta0 range
+  then spans 27x in t99, more than xi 0.5 vs 1 (19x): the doc's "xi matters far more than eta0" no longer holds.
+- Interface width (kappa x0.5 / 1 / 2, n 1200): t99 11.5 / 11.5 / 10.5 s (eta0 6e10), 165 / 169 / 168 s (1e16);
+  tau unchanged. Layer count 10 / 6 / 2 and 9 / 7 / 5, L 0.45 / 0.55 / 0.68 um (~kappa^0.3). Seed 2: same 6 layers.
+  => drying times are robust; the number of layers (and L) is set by the artificially wide interface, not a prediction.
+  The step-vs-ramp layer-count contrast (7 vs 2) must not be offered to experiments as is.
+- Scaling: tau does not follow L (tau/(L^2/D_shell) 0.28-0.58 across kappa). The whole-particle time
+  R^2/(pi^2 D_ref <factor>_harm) gives tau/t = 0.11-0.19 for all xi = 1 runs at RH 0.30 (tau 5-164 s), independent of
+  kappa, eta0, eta_ref and seed: the late drying is set by the bulk organic-phase mobility, not by the outer shell.
+- Interface-held water (f_w floor vs constant D): 0.6-0.7 % for all kappa except e0 kappa x2 (2 layers, 0.09 %); the
+  floor is not simply proportional to the layer count.
+
 ## Next steps (open)
-- [ ] kappa_P x0.5, x2 sensitivity of L and t99 (interface width)
+- [x] kappa_P x0.5, x2 sensitivity of L and t99 (interface width) — session 2
+- [ ] decide the eta_ref convention for the paper (fixed D*eta recommended) and rerun wet0 / ramp / RH 0.5, 0.8 if needed
+- [ ] layer count: needs a physical interface width (kappa from sigma ~ mN/m) or report only the coarse structure
 - [ ] three-mobility (Maxwell-Stefan-like) model with a separate water mobility (largest uncertainty: xi)
 - [ ] DTAA, terpenylic acid proxies (O:C dependence)
 - [ ] size dependence R0 = 1, 3, 30 um

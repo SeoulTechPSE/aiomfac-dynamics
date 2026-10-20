@@ -188,9 +188,13 @@ def shell_scaling(h, z, m, a, rinf, f_ref=0.05, f_lo=0.005, f_hi=0.1):
     geo = 10 ** np.mean(np.log10(fac[sh]))
     L = (r[-1] - r[aq[-1]]) * a["R0_um"] * 1e-6
     t_diff_h = L ** 2 / (a["D"] * har); t_diff_g = L ** 2 / (a["D"] * geo)
+    # whole particle: R^2 / (pi^2 D_ref <factor>_harm over 0..R); unlike L, independent of kappa (interface width)
+    drA = np.gradient(r); harA = drA.sum() / np.sum(drA / fac)
+    t_part = (r[-1] * a["R0_um"] * 1e-6) ** 2 / (np.pi ** 2 * a["D"] * harA)
     return {"t_snap_s": z["t"][j] * m["t0_s"], "fw_snap": vz[j], "L_um": L * 1e6, "fac_harm": har, "fac_geo": geo,
             "L2_D_harm_s": t_diff_h, "L2_D_geo_s": t_diff_g, "tau_s": tau,
-            "tau_over_L2D_harm": tau / t_diff_h, "tau_over_L2D_geo": tau / t_diff_g}
+            "tau_over_L2D_harm": tau / t_diff_h, "tau_over_L2D_geo": tau / t_diff_g,
+            "fac_harm_particle": harA, "R2_pi2D_particle_s": t_part, "tau_over_R2pi2D": tau / t_part}
 
 
 for tag, (h, z, m, a) in soa.items():
@@ -248,6 +252,22 @@ panel_aw(ax[2], ["soa_rh0.80_xi1_e0", "soa_rh0.50_xi1_e0", "soa_rh0.30_xi1_e0", 
 for a_ in ax:
     a_.axhline(0.01, color="#8a8984", lw=0.7, ls=":")
 plt.tight_layout(); plt.savefig(f"{FIG}/fig2_soa_water_retention.png"); plt.close()
+
+# sensitivity: interface width (kappa x0.5, x2; fine mesh, + noise seed) and the eta_ref normalisation across eta0
+if any(t.endswith("_k2") for t in soa):
+    fig, ax = plt.subplots(1, 3, figsize=(10.5, 3.1))
+    for a_, e in zip(ax[:2], ("e0", "e3")):
+        tags = [f"soa_rh0.30_xi1_{e}_fine_k0.5", f"soa_rh0.30_xi1_{e}_fine", f"soa_rh0.30_xi1_{e}_fine_k2"]
+        labs = ["κ × 0.5", "κ × 1", "κ × 2"]
+        if e == "e0":
+            tags.append("soa_rh0.30_xi1_e0_fine_s2"); labs.append("κ × 1, seed 2")
+        panel_aw(a_, tags, labs, f"Interface width, η$_0$ = {ETA0[int(e[1])]:.0e} Pa s (n 1200)")
+    panel_aw(ax[2], ["soa_rh0.30_xi1_e0"] + [f"soa_rh0.30_xi1_e{i}{s}" for i in (1, 3) for s in ("", "_er")],
+             ["η$_0$ 6e10", "1e12, η$_{ref}$ own", "1e12, η$_{ref}$ fixed", "1e16, η$_{ref}$ own", "1e16, η$_{ref}$ fixed"],
+             "D·η fixed (η$_{ref}$ 0.0086) vs own η$_{ref}$")
+    for a_ in ax:
+        a_.axhline(0.01, color="#8a8984", lw=0.7, ls=":")
+    plt.tight_layout(); plt.savefig(f"{FIG}/fig6_sensitivity.png"); plt.close()
 
 
 def profiles(tag, fname, times=(0.05, 0.2, 1, 5, 20, None)):

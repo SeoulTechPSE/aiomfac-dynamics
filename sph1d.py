@@ -53,6 +53,9 @@ def parse(argv=None):
     ap.add_argument("--dS", type=float, default=1.0)
     ap.add_argument("--visc", type=float, default=0.0, help="exponent xi of (eta_ref/eta)^xi; 0: constant mobility")
     ap.add_argument("--eta_idx", type=int, default=0, help="which eta0 column of the SOA viscosity table")
+    ap.add_argument("--eta_ref", type=float, default=None,
+                    help="viscosity (Pa s) at which the mobility is D (default: the initial state of this run, which grows with "
+                         "eta0; pass the eta_idx 0 value 0.0086 to keep D*eta fixed across eta0 as Stokes-Einstein implies)")
     ap.add_argument("--fac_min", type=float, default=1e-14)
     ap.add_argument("--dim", type=int, default=3, choices=[1, 2, 3])
     ap.add_argument("--n", type=int, default=1000)
@@ -323,7 +326,7 @@ def run(argv=None):
         L10 = np.where(np.isfinite(L10), L10, np.nanmax(L10))
         I = RegularGridInterpolator((gp_, gs_), L10, bounds_error=False, fill_value=None)
         eta_of = lambda p, s: 10 ** I(np.c_[np.clip(p, gp_[0], gp_[-1]), np.clip(s, gs_[0], gs_[-1])])  # noqa: E731
-        eta_ref = float(eta_of(np.array([w0[0]]), np.array([w0[1]]))[0])
+        eta_ref = a.eta_ref if a.eta_ref else float(eta_of(np.array([w0[0]]), np.array([w0[1]]))[0])
     Xn = S.x
     wvol = Xn ** (a.dim - 1) if a.dim > 1 else np.ones_like(Xn)
 
