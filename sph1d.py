@@ -11,7 +11,11 @@ Additions for the viscous-SOA follow-up:
    * mobility factor (eta_ref/eta(w))^xi with eta from an AIOMFAC-VISC table (xi = 1: Stokes-Einstein as --visc in
      m3g_drying_sph.py; xi < 1: fractional Stokes-Einstein, the usual form for water in viscous organics);
    * a mesh graded towards the surface (--grade), since the drying boundary layer ~ R/Pe gets thin;
-   * RH ramp, planar (dim 1) mode for the numerical interfacial tension.
+   * RH ramp, planar (dim 1) mode for the numerical interfacial tension;
+   * --mob3 1: three species mobilities m_i = d_i M_i w_i (eta_ref/eta)^xi_i (organic and AS with --visc, water with
+     --xi_w, --dW) combined in the fast-mode (mass-fixed frame) Onsager matrix for the exchange potentials
+         Lambda_ij = m_i delta_ij - (m_i w_j + w_i m_j) + w_i w_j (m_P + m_S + m_W),   i, j in {P, S}
+     so water has its own mobility (default --mob3 0: the diagonal L_i = M_i w_i (1 - w_i) of m3g).
 Newton with the exact Jacobian (12 coloured JVPs, block-banded LU)."""
 import argparse
 import json
@@ -72,6 +76,9 @@ def parse(argv=None):
     ap.add_argument("--quiet", action="store_true")
     ap.add_argument("--wmin", type=float, default=1e-3, help="log regularization threshold (m3g: 1e-3)")
     ap.add_argument("--lfloor", type=float, default=1e-4, help="floor of w in the degenerate mobility (m3g: 1e-4)")
+    ap.add_argument("--mob3", type=int, default=0, help="1: three-mobility fast-mode matrix (water mobility separate)")
+    ap.add_argument("--xi_w", type=float, default=None, help="water exponent of (eta_ref/eta)^xi_w (default: --visc)")
+    ap.add_argument("--dW", type=float, default=1.0, help="water mobility prefactor D_W,ref/D_ref (--mob3 1)")
     ap.add_argument("--implicit", type=int, default=1, help="1: R(t) solved with the fields (backward Euler); 0: explicit Rdot as m3g")
     return ap.parse_args(argv)
 
@@ -149,7 +156,7 @@ class Solver:
         self.dPS, self.den = (dP, dS), a.kP * dP ** 2 + a.kS * dS ** 2
         self.res = jax.jit(self._residual)
         self.jvps = jax.jit(jax.vmap(lambda U, v, *c: jax.jvp(lambda u: self._residual(u, *c), (U,), (v,))[1],
-                                     in_axes=(None, 0) + (None,) * 8))
+                                     in_axes=(None, 0) + (None,) * 9))
         nd = 4 * (n + 1)
         seeds = np.zeros((12, nd))
         for col in range(3):
@@ -166,7 +173,7 @@ class Solver:
         self.band_rows = np.concatenate(self.band_rows); self.band_cols = np.concatenate(self.band_cols)
         self.band_seed = np.concatenate(self.band_seed)
 
-    def _residual(self, U, Un, LP, LS, dt, Rn, R1, Rd, H):
+    def _residual(self, U, Un, LP, LS, LX, dt, Rn, R1, Rd, H):
         a, th = self.a, self.th
         d = a.dim
         F4 = U.reshape(-1, 4); Fn = Un.reshape(-1, 4)
@@ -174,7 +181,7 @@ class Solver:
         def q(v):           # values at quadrature points (n, 3) and derivatives (n, 1)
             return v[:-1, None] * self.N[None, :, 0] + v[1:, None] * self.N[None, :, 1], ((v[1:] - v[:-1]) / self.h)[:, None]
         wp, dwp = q(F4[:, 0]); ws, dws = q(F4[:, 1]); mp, dmp = q(F4[:, 2]); ms, dms = q(F4[:, 3])
-        wpn, _ = q(Fn[:, 0]); wsn, _ = q(Fn[:, 1]); lp, _ = q(LP); ls, _ = q(LS)
+        wpn, _ = q(Fn[:, 0]); wsn, _ = q(Fn[:, 1]); lp, _ = q(LP); ls, _ = q(LS); lx, _ = q(LX)
         X, W = self.Xq, self.w2 * self.wq[None, :] * h
         gp, gs = jax.grad(lambda x, y: th.gex(x, y).sum(), argnums=(0, 1))(wp, ws)
         mup = lnreg(wp, a.wmin) / th.MP + gp
@@ -190,8 +197,12 @@ class Solver:
             e0 = jnp.sum(W * (f_val * N0 + f_der * dN0), 1)
             e1 = jnp.sum(W * (f_val * N1 + f_der * dN1), 1)
             return jnp.zeros(F4.shape[0]).at[:-1].add(e0).at[1:].add(e1)
-        Rqp = assemble((R1 ** d * wp - Rn ** d * wpn) / dt, Rd1 * Rd * wp * X + Rd2 * lp * dmp)
-        Rqs = assemble((R1 ** d * ws - Rn ** d * wsn) / dt, Rd1 * Rd * ws * X + Rd2 * ls * dms)
+        if a.mob3:           # full 2x2 mobility matrix (cross term lx)
+            jp, js = Rd2 * (lp * dmp + lx * dms), Rd2 * (lx * dmp + ls * dms)
+        else:                # diagonal, same operation order as before: --mob3 0 reproduces earlier runs bit for bit
+            jp, js = Rd2 * lp * dmp, Rd2 * ls * dms
+        Rqp = assemble((R1 ** d * wp - Rn ** d * wpn) / dt, Rd1 * Rd * wp * X + jp)
+        Rqs = assemble((R1 ** d * ws - Rn ** d * wsn) / dt, Rd1 * Rd * ws * X + js)
         Rrp = assemble(mp - mup, -a.kP / R1 ** 2 * dwp)
         Rrs = assemble(ms - mus, -a.kS / R1 ** 2 * dws)
         if d > 1:            # wetting at X = 1 only
@@ -235,19 +246,19 @@ class Solver:
         low-mobility skin forms)."""
         th = self.th
         self.LAM = LAM
-        def fu(U, R1, Un, LP, LS, dt, Rn, H):
-            return self._residual(U, Un, LP, LS, dt, Rn, R1, (R1 - Rn) / dt, H)
+        def fu(U, R1, Un, LP, LS, LX, dt, Rn, H):
+            return self._residual(U, Un, LP, LS, LX, dt, Rn, R1, (R1 - Rn) / dt, H)
         def fr(pe, se, R1, dt, Rn, rh):
             return R1 - Rn + dt * LAM * (jnp.exp(th.lnaw(pe, se)) - rh) / R1
         self.fu = jax.jit(fu)
         self.dfu_dR = jax.jit(lambda U, R1, *c: jax.jvp(lambda r: fu(U, r, *c), (R1,), (1.0,))[1])
         self.jvpsR = jax.jit(jax.vmap(lambda U, v, R1, *c: jax.jvp(lambda u: fu(u, R1, *c), (U,), (v,))[1],
-                                      in_axes=(None, 0, None) + (None,) * 6))
+                                      in_axes=(None, 0, None) + (None,) * 7))
         self.fr = jax.jit(fr)
         self.dfr = jax.jit(jax.grad(fr, argnums=(0, 1, 2)))
 
     def newton_R(self, U0, R0, c, dt, Rn, rh, rtol=1e-9, atol=1e-11, maxit=15):
-        """c = (Un, LP, LS, dt, Rn, H)."""
+        """c = (Un, LP, LS, LX, dt, Rn, H)."""
         U, R1 = U0.copy(), float(R0)
         def resid(U, R1):
             return np.asarray(self.fu(jnp.asarray(U), R1, *c)), float(self.fr(U[-4], U[-3], R1, dt, Rn, rh))
@@ -338,14 +349,29 @@ def run(argv=None):
             return a.rh
         return a.rh0 + (a.rh - a.rh0) * min(t * t0_s / a.ramp_s, 1.0)
 
+    xi_w = a.visc if a.xi_w is None else a.xi_w
+
     def mobility(Uv):
+        """nodal (lagged) mobilities: diagonal LP, LS and the cross term LX (0 unless --mob3); fac, facW for output"""
         p, s = Uv[0::4], Uv[1::4]
-        fac = np.ones_like(p)
+        fac = np.ones_like(p); facW = fac
         if eta_of is not None:
-            fac = np.maximum((eta_ref / eta_of(p, s)) ** a.visc, a.fac_min)
-        LP = a.dP * fac * th.MP * np.clip(p, a.lfloor, 1) * np.clip(1 - p, 0, 1)
-        LS = a.dS * fac * th.MS * np.clip(s, a.lfloor, 1) * np.clip(1 - s, 0, 1)
-        return LP, LS, fac
+            eta = eta_of(p, s)
+            fac = np.maximum((eta_ref / eta) ** a.visc, a.fac_min)
+            facW = np.maximum((eta_ref / eta) ** xi_w, a.fac_min)
+        if not a.mob3:
+            LP = a.dP * fac * th.MP * np.clip(p, a.lfloor, 1) * np.clip(1 - p, 0, 1)
+            LS = a.dS * fac * th.MS * np.clip(s, a.lfloor, 1) * np.clip(1 - s, 0, 1)
+            return LP, LS, np.zeros_like(p), fac, facW
+        pc, sc = np.clip(p, 0, 1), np.clip(s, 0, 1)
+        mP = a.dP * fac * th.MP * np.clip(p, a.lfloor, 1)
+        mS = a.dS * fac * th.MS * np.clip(s, a.lfloor, 1)
+        mW = a.dW * facW * th.MW * np.clip(1 - p - s, a.lfloor, 1)
+        mt = mP + mS + mW
+        LP = mP - 2 * mP * pc + pc ** 2 * mt
+        LS = mS - 2 * mS * sc + sc ** 2 * mt
+        LX = -(mP * sc + pc * mS) + pc * sc * mt
+        return LP, LS, LX, fac, facW
 
     thr = 0.5 * (S.org[0] + S.aq[0])
     hist, snaps = [], []
@@ -363,14 +389,15 @@ def run(argv=None):
         if mass0 is None:
             mass0 = (mP, mS)
         vol = integ(np.ones_like(p))
-        LPv, LSv, fac = mobility(Uv)
+        LPv, LSv, LXv, fac, facW = mobility(Uv)
         y = p > thr
         rec = {"t": t, "t_s": t * t0_s, "steps": k, "R": R, "Rdot": Rdot, "Pe_evap": -Rdot * R, "RH": rh_amb(t),
                "aw_surf": float(aw[-1]), "aw_mean": integ(aw) / vol, "aw_centre": float(aw[0]),
                "PEG_rel": mP / mass0[0], "AS_rel": mS / mass0[1], "wP_edge": float(p[-1]), "wP_centre": float(p[0]),
                "wS_centre": float(s[0]), "wW_centre": float(1 - p[0] - s[0]), "wW_mean": 1 - integ(p + s) / vol,
                "wP_min": float(p.min()), "wP_max": float(p.max()), "peg_layers": int(np.sum(np.diff(y.astype(int)) == 1) + y[0]),
-               "logfac_min": float(np.log10(fac.min())), "logfac_surf": float(np.log10(fac[-1]))}
+               "logfac_min": float(np.log10(fac.min())), "logfac_surf": float(np.log10(fac[-1])),
+               "logfacW_min": float(np.log10(facW.min()))}
         hist.append(rec)
         snaps.append((t, R, p.copy(), s.copy(), aw.copy(), fac.copy()))
         if not a.quiet:
@@ -391,12 +418,12 @@ def run(argv=None):
     while t < tend - 1e-12:
         Rdot = 0.0 if a.dim == 1 else -LAM * (surface_aw(U) - rh_amb(t)) / R
         dt = min(dt, tend - t, a.dR_max * R / max(abs(Rdot), 1e-12))
-        LP, LS, _ = mobility(U)
+        LP, LS, LX, _, _ = mobility(U)
         if a.implicit and a.dim > 1:
-            Unew, R1, reason, its = S.newton_R(U, R + dt * Rdot, (jnp.asarray(U), jnp.asarray(LP), jnp.asarray(LS), dt, R, H),
+            Unew, R1, reason, its = S.newton_R(U, R + dt * Rdot, (jnp.asarray(U), jnp.asarray(LP), jnp.asarray(LS), jnp.asarray(LX), dt, R, H),
                                                dt, R, rh_amb(t + dt))
         else:
-            consts = (jnp.asarray(U), jnp.asarray(LP), jnp.asarray(LS), dt, R, R + dt * Rdot, Rdot, H)
+            consts = (jnp.asarray(U), jnp.asarray(LP), jnp.asarray(LS), jnp.asarray(LX), dt, R, R + dt * Rdot, Rdot, H)
             Unew, reason, its = S.newton(U, consts); R1 = R + dt * Rdot
         if not (reason > 0 and np.isfinite(Unew).all() and Unew[0::4].min() > -0.02 and Unew[1::4].min() > -0.02):
             dt *= 0.3; nfail += 1

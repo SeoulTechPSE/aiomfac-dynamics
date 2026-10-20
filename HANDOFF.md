@@ -92,6 +92,19 @@ end 0.6-0.8 % above the constant-D radius, the ramp 0.2 % below; `t_mean_s` (mea
   not fit), D_harm is 6-9x larger and t99 7-9x shorter than R^2 scaling; c 0.088 / 0.100. Sub-10 um results need a
   thinner (physical) interface and a finer mesh; LLPS suppression itself is a sub-micron effect (follow-up #2).
 
+- Three-mobility model (`--mob3 1`, `run_mob3.sh`, fig7): species mobilities m_i = d_i M_i w_i (eta_ref/eta)^xi_i in the
+  fast-mode Onsager matrix Lambda_ij = m_i delta_ij - (m_i w_j + w_i m_j) + w_i w_j sum_k m_k for the exchange potentials
+  (PSD, same 4 unknowns per node; a vanishing matrix mobility still lets water leave via w_P^2 m_W, unlike slow mode).
+  Organic and AS: xi = 1; water: xi_w, anchored at pure water (D ~1.9e-9 m2/s, 1.08 mPa s at 290 K, approximate):
+  dW = 19 (1.08e-3/8.604e-3)^xi_w. `--mob3 0` reproduces the earlier runs bit for bit (checked).
+  t99 (s), RH 0.30, D*eta fixed:   xi_w 0.5 / 0.75 / 1      2-mobility (xi 1)
+     eta0 6e10                     2.3 / 28 / 249            11.6
+     eta0 1e16                     9.8 / 321 / >=4000 (not at equilibrium at 1e4 s)   315
+  Matrix form alone (all mobilities constant): t99 0.41 vs 0.26 s. With dW = 1 (runs m3w*): xi_w 0.5 gives 15 / 87 s.
+  => The water diffusion law is now the dominant uncertainty: xi_w 0.5 -> 1 changes t99 by 100x (eta0 6e10) to >400x
+  (1e16); eta0 changes it by 4x (xi_w 0.5) to >16x (xi_w 1). The 2-mobility xi = 1 results sit near xi_w ~ 0.75.
+  tau ~ R^2/(pi^2 D_bar) with D_bar from the organic factor no longer applies (water has its own mobility).
+
 ## Next steps (open)
 - [x] kappa_P x0.5, x2 sensitivity of L and t99 (interface width) — session 2
 - [x] eta_ref convention: D*eta fixed (eta_ref 0.0086 Pa s) adopted 2026-10-20. Use `--eta_ref 0.008603994797084933`
@@ -99,7 +112,9 @@ end 0.6-0.8 % above the constant-D radius, the ramp 0.2 % below; `t_mean_s` (mea
   The own-eta_ref runs (soa_rh0.30_xi1_e1..3, and the kappa runs e3_fine*) are kept for comparison (fig6); kappa
   comparisons at eta0 1e16 are relative, so they stand.
 - [ ] layer count: needs a physical interface width (kappa from sigma ~ mN/m) or report only the coarse structure
-- [ ] three-mobility (Maxwell-Stefan-like) model with a separate water mobility (largest uncertainty: xi)
+- [x] three-mobility model — session 2 (fast mode; xi_w is the dominant uncertainty)
+- [ ] constrain xi_w and D_W(a_w) from measured water diffusion in viscous organics (e.g. alpha-pinene SOA, sucrose)
+  and redo the scaling with a water-based D_bar
 - [ ] DTAA, terpenylic acid proxies (O:C dependence)
 - [x] size dependence R0 = 1, 3, 30 um — session 2 (tau ~ R^2 for 10-30 um; 1-3 um need a thinner interface)
 - [ ] ramp time scan 6, 20, 60, 200 s (layer-count transition; input for follow-up #4)

@@ -133,7 +133,8 @@ for f in sorted(glob.glob(f"{RUN}/soa_rh*_hist.csv")):
     h, z, m = load(tag)
     soa[tag] = (h, z, m, json.loads(str(z["args"])))
 RINF = {}       # end state = each run's own final radius (see the note on interface-held water in the summary)
-RCONST = {a["rh"]: h.R.iloc[-1] for tag, (h, z, m, a) in soa.items() if a["visc"] == 0 and a["ramp_s"] == 0}
+RCONST = {a["rh"]: h.R.iloc[-1] for tag, (h, z, m, a) in soa.items() if a["visc"] == 0 and a["ramp_s"] == 0
+          and not a.get("mob3")}
 
 
 def fw(h, rinf):
@@ -203,6 +204,7 @@ for tag, (h, z, m, a) in soa.items():
     rinf = h.R.iloc[-1]
     t1 = np.argmin(abs(h.t_s - 1.0)); t10 = np.argmin(abs(h.t_s - 10.0))
     rows.append({"case": tag, "RH": rh, "xi": a["visc"], "eta_idx": a["eta_idx"], "wet": a["wet"],
+                 "mob3": a.get("mob3", 0), "xi_w": (a.get("xi_w") if a.get("xi_w") is not None else a["visc"]) if a.get("mob3") else np.nan,
                  "R_final": h.R.iloc[-1], "R_eq_AIOMFAC": mr ** (1 / 3), "R_inf_model": rinf,
                  "fw_floor_vs_constD": ((h.R.iloc[-1] ** 3 - RCONST[rh] ** 3) / (1 - RCONST[rh] ** 3)) if rh in RCONST else np.nan,
                  "t90_s": t_frac(h, rinf, 0.10), "t99_s": t_frac(h, rinf, 0.01),
@@ -270,6 +272,19 @@ if any(t.endswith("_k2") for t in soa):
     for a_ in ax:
         a_.axhline(0.01, color="#8a8984", lw=0.7, ls=":")
     plt.tight_layout(); plt.savefig(f"{FIG}/fig6_sensitivity.png"); plt.close()
+
+# three-mobility (fast-mode) model: water exponent xi_w vs the two-mobility model
+if "soa_rh0.30_xi1_e0_m3aw0.5" in soa:      # water anchored at pure water (m3a*); the dW = 1 runs (m3w*) are in summary.csv
+    fig, ax = plt.subplots(1, 3, figsize=(10.5, 3.1))
+    panel_aw(ax[0], ["soa_rh0.30_xi0", "soa_rh0.30_xi0_m3"], ["2-mobility", "3-mobility (fast mode)"],
+             "Constant mobility: matrix form only")
+    for a_, e, old in ((ax[1], "e0", "soa_rh0.30_xi1_e0"), (ax[2], "e3", "soa_rh0.30_xi1_e3_er")):
+        panel_aw(a_, [old] + [f"soa_rh0.30_xi1_{e}_m3aw{w}" for w in ("1", "0.75", "0.5")],
+                 ["2-mobility, ξ = 1", "3-mob., ξ$_w$ = 1", "3-mob., ξ$_w$ = 0.75", "3-mob., ξ$_w$ = 0.5"],
+                 f"η$_0$ = {ETA0[int(e[1])]:.0e} Pa s (organic, AS: ξ = 1)")
+    for a_ in ax:
+        a_.axhline(0.01, color="#8a8984", lw=0.7, ls=":")
+    plt.tight_layout(); plt.savefig(f"{FIG}/fig7_three_mobility.png"); plt.close()
 
 
 def profiles(tag, fname, times=(0.05, 0.2, 1, 5, 20, None)):
