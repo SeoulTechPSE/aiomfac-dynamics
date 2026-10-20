@@ -105,6 +105,18 @@ end 0.6-0.8 % above the constant-D radius, the ramp 0.2 % below; `t_mean_s` (mea
   (1e16); eta0 changes it by 4x (xi_w 0.5) to >16x (xi_w 1). The 2-mobility xi = 1 results sit near xi_w ~ 0.75.
   tau ~ R^2/(pi^2 D_bar) with D_bar from the organic factor no longer applies (water has its own mobility).
 
+- Water diffusion constrained by measurements (session 2, 2026-10-21; results/water_diffusion/README.md, fig8, fig9).
+  Lienhard 2015 (3-MBTCA, EDB) and Price 2014 (raffinose/M5AS with 7.7 % AS, Raman) agree on D_w(a_w) at 290 K
+  (1.8e-14 / 1.6e-14 at a_w 0.2, 3.7e-11 at 0.75). Against the model viscosity of the AS-containing MBTCA-rich phase
+  they imply xi_w 0.90 / 0.84 (0.35-0.4 decades rms) for eta0 6e10, but 0.64-0.68 for eta0 1e16: xi_w is not
+  transferable, so `--dw_model` takes D_W(a_w) at the local a_w directly (`run_dw.sh`).
+  t99 (s), RH 0.30, 10 um, D_W measured:  Price 2015 SOM (x100) 21 | M5AS 54 | 3-MBTCA 116 | Lienhard SOA 608
+     eta0 1e16 (organic xi 1, same D_W):                         M5AS 53 | 3-MBTCA 129
+  => With the water diffusivity from data, the trapping time is 50-130 s for acid/AS-type matrices (5-10x the 2-mobility
+  baseline of 11.6 s) and nearly independent of eta0: in the 2-mobility model the eta0 dependence came from tying water
+  to the organic mobility. The spread between SOA data sets (21-608 s) is now the main uncertainty; an oligomer-rich SOA
+  should be represented by its own D_W(a_w) data, not by eta0.
+
 ## Next steps (open)
 - [x] kappa_P x0.5, x2 sensitivity of L and t99 (interface width) — session 2
 - [x] eta_ref convention: D*eta fixed (eta_ref 0.0086 Pa s) adopted 2026-10-20. Use `--eta_ref 0.008603994797084933`
@@ -113,8 +125,9 @@ end 0.6-0.8 % above the constant-D radius, the ramp 0.2 % below; `t_mean_s` (mea
   comparisons at eta0 1e16 are relative, so they stand.
 - [ ] layer count: needs a physical interface width (kappa from sigma ~ mN/m) or report only the coarse structure
 - [x] three-mobility model — session 2 (fast mode; xi_w is the dominant uncertainty)
-- [ ] constrain xi_w and D_W(a_w) from measured water diffusion in viscous organics (e.g. alpha-pinene SOA, sucrose)
-  and redo the scaling with a water-based D_bar
+- [x] constrain xi_w and D_W(a_w) from measured water diffusion — session 2 (`--dw_model`)
+- [ ] Price 2015 ESI Table S2 (blocked for scripts; download by hand) to replace the x100 SOM bracket
+- [ ] redo the tau ~ R^2/(pi^2 D_bar) scaling with a water-based D_bar (harmonic mean of D_W(a_w) over the particle)
 - [ ] DTAA, terpenylic acid proxies (O:C dependence)
 - [x] size dependence R0 = 1, 3, 30 um — session 2 (tau ~ R^2 for 10-30 um; 1-3 um need a thinner interface)
 - [ ] ramp time scan 6, 20, 60, 200 s (layer-count transition; input for follow-up #4)

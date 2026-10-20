@@ -15,7 +15,9 @@ Additions for the viscous-SOA follow-up:
    * --mob3 1: three species mobilities m_i = d_i M_i w_i (eta_ref/eta)^xi_i (organic and AS with --visc, water with
      --xi_w, --dW) combined in the fast-mode (mass-fixed frame) Onsager matrix for the exchange potentials
          Lambda_ij = m_i delta_ij - (m_i w_j + w_i m_j) + w_i w_j (m_P + m_S + m_W),   i, j in {P, S}
-     so water has its own mobility (default --mob3 0: the diagonal L_i = M_i w_i (1 - w_i) of m3g).
+     so water has its own mobility (default --mob3 0: the diagonal L_i = M_i w_i (1 - w_i) of m3g);
+     --dw_model <name>: water mobility m_W = M_W w_W D_W(a_w)/D_ref from a measured D_W(a_w) at the local water activity
+     (results/water_diffusion/dw_aw_290K.csv: mbtca, m5as, soa_lienhard, som_price), instead of (eta_ref/eta)^xi_w.
 Newton with the exact Jacobian (12 coloured JVPs, block-banded LU)."""
 import argparse
 import json
@@ -79,6 +81,7 @@ def parse(argv=None):
     ap.add_argument("--mob3", type=int, default=0, help="1: three-mobility fast-mode matrix (water mobility separate)")
     ap.add_argument("--xi_w", type=float, default=None, help="water exponent of (eta_ref/eta)^xi_w (default: --visc)")
     ap.add_argument("--dW", type=float, default=1.0, help="water mobility prefactor D_W,ref/D_ref (--mob3 1)")
+    ap.add_argument("--dw_model", default=None, help="column of results/water_diffusion/dw_aw_290K.csv: D_W(a_w) (--mob3 1)")
     ap.add_argument("--implicit", type=int, default=1, help="1: R(t) solved with the fields (backward Euler); 0: explicit Rdot as m3g")
     return ap.parse_args(argv)
 
@@ -350,6 +353,12 @@ def run(argv=None):
         return a.rh0 + (a.rh - a.rh0) * min(t * t0_s / a.ramp_s, 1.0)
 
     xi_w = a.visc if a.xi_w is None else a.xi_w
+    if a.dw_model:
+        assert a.mob3, "--dw_model needs --mob3 1"
+        assert abs(a.T - 290.15) < 0.5, "dw_aw_290K.csv is for 290.15 K"
+        import pandas as pd
+        DT = pd.read_csv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "results/water_diffusion/dw_aw_290K.csv"))
+        dw_aw, dw_l10 = DT["a_w"].values, np.log10(DT[a.dw_model].values)
 
     def mobility(Uv):
         """nodal (lagged) mobilities: diagonal LP, LS and the cross term LX (0 unless --mob3); fac, facW for output"""
@@ -366,7 +375,12 @@ def run(argv=None):
         pc, sc = np.clip(p, 0, 1), np.clip(s, 0, 1)
         mP = a.dP * fac * th.MP * np.clip(p, a.lfloor, 1)
         mS = a.dS * fac * th.MS * np.clip(s, a.lfloor, 1)
-        mW = a.dW * facW * th.MW * np.clip(1 - p - s, a.lfloor, 1)
+        if a.dw_model:          # measured D_W at the local water activity; facW = D_W/D_ref for output
+            awn = np.clip(np.exp(np.asarray(lnaw_nodes(jnp.array(p), jnp.array(s)))), 0.0, 1.0)
+            facW = 10 ** np.interp(awn, dw_aw, dw_l10) / a.D
+            mW = facW * th.MW * np.clip(1 - p - s, a.lfloor, 1)
+        else:
+            mW = a.dW * facW * th.MW * np.clip(1 - p - s, a.lfloor, 1)
         mt = mP + mS + mW
         LP = mP - 2 * mP * pc + pc ** 2 * mt
         LS = mS - 2 * mS * sc + sc ** 2 * mt

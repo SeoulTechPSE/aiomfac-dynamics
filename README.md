@@ -6,7 +6,8 @@ Results are summarised in the doc "후속 연구 1 예비 결과". This folder h
 - `sph1d.py` — JAX/NumPy port of `code/m3g_drying_sph.py` (same P1 weak form, mobility, evaporation, wetting).
   Additions: thermodynamics with the water ideal term split off (`--system <folder>`), mobility factor
   `(eta_ref/eta)^xi` (`--visc xi`, `--eta_idx`), mesh graded towards the surface (`--grade`), implicit radius
-  (`--implicit 1`, default), RH ramp (`--ramp_s`), three-mobility fast-mode matrix with a separate water mobility (`--mob3 1`, `--xi_w`, `--dW`),
+  (`--implicit 1`, default), RH ramp (`--ramp_s`), three-mobility fast-mode matrix with a separate water mobility (`--mob3 1`, `--xi_w`, `--dW`, or a measured
+  D_W(a_w) at the local water activity with `--dw_model`),
   fixed viscosity normalisation (`--eta_ref`; default: each run's
   own initial viscosity, which grows with eta0), planar mode for sigma_num (`--dim 1`), `--wmin`/`--lfloor`
   (log regularisation and mobility floor; paper6 values 1e-3/1e-4, SOA runs 1e-6/1e-7).
@@ -21,7 +22,9 @@ Results are summarised in the doc "후속 연구 1 예비 결과". This folder h
   dolfinx (these use `--implicit 0`, the explicit Rdot of m3g, as when they were run), `run_kappa.sh` interface-width
   sensitivity (kappa x0.5, x2, seed 2; fine mesh), `run_etaref.sh` eta0 runs with D*eta fixed (`--eta_ref`): the adopted convention, used in fig2/4/5,
   `run_size.sh` R0 = 1, 3, 30 um at fixed physical interface width (+ a pure-rescaling check), `run_mob3.sh`
-  three-mobility runs (water anchored at pure water: `*_m3aw*`; dW = 1: `*_m3w*`).
+  three-mobility runs (water anchored at pure water: `*_m3aw*`; dW = 1: `*_m3w*`), `run_dw.sh` measured D_W(a_w).
+- `wdiff.py`, `water_diffusion.py`, `results/water_diffusion/` — literature water diffusivities (Lienhard 2015,
+  Price 2014/2015, Holz 2000), xi_w fits, D_W(a_w) tables at 290 K, fig8; see results/water_diffusion/README.md.
 - `analyze.py` — figures, `figures/summary.csv` (+ `summary.txt`) and `figures/scaling.csv`.
   t90/t99 are log-interpolated between snapshots (`*_snap_s`: first snapshot at or below the level, as in the first
   draft, up to ~17 % high). PEG rows: onset time, previous snapshot time (= resolution), mean a_w and X at onset,

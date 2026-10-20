@@ -286,6 +286,21 @@ if "soa_rh0.30_xi1_e0_m3aw0.5" in soa:      # water anchored at pure water (m3a*
         a_.axhline(0.01, color="#8a8984", lw=0.7, ls=":")
     plt.tight_layout(); plt.savefig(f"{FIG}/fig7_three_mobility.png"); plt.close()
 
+# three-mobility model with measured D_W(a_w) (--dw_model) vs the fractional Stokes-Einstein water mobility
+if "soa_rh0.30_xi1_e0_dw_mbtca" in soa:
+    fig, ax = plt.subplots(1, 2, figsize=(9, 3.2))
+    panel_aw(ax[0], ["soa_rh0.30_xi1_e0", "soa_rh0.30_xi1_e0_dw_som_price", "soa_rh0.30_xi1_e0_dw_m5as",
+                     "soa_rh0.30_xi1_e0_dw_mbtca", "soa_rh0.30_xi1_e0_dw_soa_lienhard", "soa_rh0.30_xi1_e0_m3aw1"],
+             ["2-mobility, ξ = 1", "D$_W$ Price 2015 SOM (×100)", "D$_W$ Price 2014 M5AS", "D$_W$ Lienhard 3-MBTCA",
+              "D$_W$ Lienhard SOA", "ξ$_w$ = 1 (anchored)"], "η$_0$ 6e10: measured D$_W$(a$_w$)")
+    panel_aw(ax[1], ["soa_rh0.30_xi1_e3_er", "soa_rh0.30_xi1_e3_dw_m5as", "soa_rh0.30_xi1_e3_dw_mbtca",
+                     "soa_rh0.30_xi1_e3_m3aw1"],
+             ["2-mobility, ξ = 1", "D$_W$ Price 2014 M5AS", "D$_W$ Lienhard 3-MBTCA", "ξ$_w$ = 1 (anchored)"],
+             "η$_0$ 1e16: measured D$_W$(a$_w$)")
+    for a_ in ax:
+        a_.axhline(0.01, color="#8a8984", lw=0.7, ls=":")
+    plt.tight_layout(); plt.savefig(f"{FIG}/fig9_measured_water_diffusion.png"); plt.close()
+
 
 def profiles(tag, fname, times=(0.05, 0.2, 1, 5, 20, None)):
     if tag not in soa:
