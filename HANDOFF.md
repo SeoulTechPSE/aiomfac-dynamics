@@ -85,7 +85,8 @@ end 0.6-0.8 % above the constant-D radius, the ramp 0.2 % below; `t_mean_s` (mea
 
 ## Next steps (open)
 - [x] kappa_P x0.5, x2 sensitivity of L and t99 (interface width) — session 2
-- [ ] decide the eta_ref convention for the paper (fixed D*eta recommended) and rerun wet0 / ramp / RH 0.5, 0.8 if needed
+- [ ] adopt fixed D*eta (eta_ref 0.0086) for the paper: only the eta0 runs e1-e3 change (`*_er`); all eta_idx 0 runs
+  (wet0, ramp, RH 0.5/0.8, xi 0.5, fine) already have eta_ref 0.0086
 - [ ] layer count: needs a physical interface width (kappa from sigma ~ mN/m) or report only the coarse structure
 - [ ] three-mobility (Maxwell-Stefan-like) model with a separate water mobility (largest uncertainty: xi)
 - [ ] DTAA, terpenylic acid proxies (O:C dependence)
